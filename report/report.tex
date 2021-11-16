@@ -1,0 +1,188 @@
+\documentclass[12pt,letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor} 
+\usepackage{listings}
+%opening
+\title{Proyecto de Simulación basada en Eventos Discretos}
+\author{David Guaty Dom\'inguez C412}
+\date{}
+\lstset{
+	columns=fullflexible,
+	frame=single,
+	breaklines=true,
+	postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
+}
+\begin{document}
+
+\maketitle
+
+\section*{Aeropuerto de Barajas}
+En el Aeropuerto de Barajas, se desea conocer cuánto tiempo se encuentran vac\'ias las pistas de aterrizaje. Se conoce que el aeropuerto cuenta con un máximo de 5 pistas de aterrizaje dedicadas a aviones de carga y que se considera que una pista está ocupada cuando hay un avión aterrizando, despegando o cuando se encuentra cargando o descargando mercanc\'ia o el abordaje o aterrizaje de cada pasajero.
+
+Se conoce que el tiempo cada avión que arriba al aeropuerto distribuye,
+mediante una función de distribución exponencial con $\lambda$ = 20 minutos.
+
+Si un avión arriba al aeropuerto y no existen pistas vac\'ias, se mantiene
+esperando hasta que se vac\'ie una de ellas (en caso de que existan varios aviones
+en esta situación, pues se establece una suerte de cola para su aterrizaje.
+
+Se conoce además que el tiempo de carga y descarga de un avión distribuye mediante una función de distribución exponencial con $\lambda$ = 30 minutos. Se considera además que el tiempo de aterrizaje y despegue de un avión distribuye normal (N(10,5)) y la probabilidad de que un avión cargue y/o descargue en cada viaje corresponde a una distribución uniforme.
+
+Además de esto se conoce que los aviones tiene una probabilidad de tener
+una rotura de 0.1. As\'i, cuando un avión posee alguna rotura debe ser reparado en un tiempo que distribuye exponencial con $\lambda$ = 15 minutos. Las roturas se identifican justo antes del despegue de cada avión. 
+
+Igualmente cada avión, durante el tiempo que está en la pista debe recargar combustible y se conoce que el tiempo de recarga de combustible distribuye exponencial $\lambda$ = 30 minutos y se comienza justamente cuando el avión aterriza.
+
+Se asume además que los aviones pueden aterrizar en cada pista sin ninguna preferencia o requerimiento.
+
+Simule el comportamiento del aeropuerto por una semana para estimar el
+tiempo total en que se encuentran vac\'ia cada una de las pistas del aeropuerto.
+
+\section*{An\'alisis}
+
+Primero que todo se analiza las variables aleatorias que hay que generar.
+
+Para generar una variable uniforme U(0,1) se utiliz\'o el m\'odulo de python random, la funci\'on random.
+
+Para generar una variable aleatoria que siguiera la distribuci\'on exponencial se utiliz\'o el m\'etodo de la transformada inversa.
+\begin{lstlisting}[language=Python,caption= Variable con distribucion exponencial]
+def exp(l: float):
+	U = random.random()
+	return -1/l* math.log(U)
+\end{lstlisting}
+
+Para generar una variable aleatoria con distribuci\'on normal se us\'o el m\'etodo de los rechazos.
+\begin{lstlisting}[language=Python,caption= Variable con distribucion normal]
+def normal(miu:float, var:float ):
+	sd = math.sqrt(var)
+	return std_normal()*sd + miu
+def std_normal():
+	Y1 = 1
+	Y2 = 0
+	while( Y2 - (Y1 - 1)**2/2  <=0):
+		Y1 = exp(1)
+		Y2 = exp(1)
+	
+	U = random.random()
+	Z = Y1
+	if(U > 1/2):
+	Z*=-1
+	return Z
+\end{lstlisting}
+
+Se genera una variable aleatoria con distribuci\'on normal est\'andar y se transforma a la distribuci\'on normal requerida.
+
+Ahora se pasa a analizar la situaci\'on a simular.
+
+Del problema se concluye que cada avi\'on est\'a en alguno de los estados:
+\begin{itemize}
+	\item Aterrizando
+	\item Cargando combustible
+	\item Descargando
+	\item Cargando
+	\item Reparando
+	\item Despegando
+\end{itemize}
+
+\begin{quote}
+	En el Aeropuerto de Barajas, se desea conocer cuánto tiempo se encuentran vac\'ias las pistas de aterrizaje. Se conoce que el aeropuerto cuenta con un máximo de 5 pistas de aterrizaje dedicadas a aviones de carga y que se considera que una pista está ocupada cuando hay un avión aterrizando, despegando o cuando se encuentra cargando o descargando mercanc\'ia o el abordaje o aterrizaje de cada pasajero.
+\end{quote}
+
+Por lo que se asume que la pista est\'a ocupada desde que el avi\'on esta aterrizando hasta que termina de despegar.
+
+Para conocer el tiempo total  que se encuentra vac\'ia una pista, se tendr\'a una lista de intervalos de la forma $[t_a, t_d]$ que significa que desde $t_a$ hasta $t_b$ la pista estar\'a ocupada. Para obtener el tiempo que se quiere se restar\'a al total de tiempo transcurrido de la simulaci\'on la suma de las longitudes de los intervalos.
+
+\begin{quote}
+	Se conoce que el tiempo cada avión que arriba al aeropuerto distribuye,
+mediante una función de distribución exponencial con $\lambda$ = 20 minutos.
+\end{quote}
+
+Se asume que cada evento de arribo al aeropuerto ser\'a independiente. Como todos los arribos siguen una distribuci\'on exponencial con la misma frecuencia y son independientes entonces se tiene un proceso de Poisson homog\'eneo. Por lo que para obtener el tiempo en el que el siguiente avi\'on arrib\'o al aeropuerto se sigue el procedimiento $t_{a+1} = t_a + Y$ donde Y es una variable aleatoria obtenida mediante el listado 1 y $t_a$ es el tiempo en que arrib\'o el avi\'on anterior.
+
+\begin{quote}
+	Si un avión arriba al aeropuerto y no existen pistas vac\'ias, se mantiene
+	esperando hasta que se vac\'ie una de ellas (en caso de que existan varios aviones
+	en esta situación, pues se establece una suerte de cola para su aterrizaje.
+\end{quote}
+
+Esta parte del problema se model\'o solamente con una variable contadora $cnt_q$ que dice cu\'antos aviones est\'an en cola. No fue necesario implementar una cola expl\'icitamente debido a que se pueden considerar indistintos los aviones .
+
+\begin{quote}
+	Se conoce además que el tiempo de carga y descarga de un avión distribuye mediante una función de distribución exponencial con $\lambda$ = 30 minutos. Se considera además que el tiempo de aterrizaje y despegue de un avión distribuye normal (N(10,5)) y la probabilidad de que un avión cargue y/o descargue en cada viaje corresponde a una distribución uniforme.	
+	Además de esto se conoce que los aviones tiene una probabilidad de tener
+	una rotura de 0.1. As\'i, cuando un avión posee alguna rotura debe ser reparado en un tiempo que distribuye exponencial con $\lambda$ = 15 minutos. Las roturas se identifican justo antes del despegue de cada avión. 
+	Igualmente cada avión, durante el tiempo que está en la pista debe recargar combustible y se conoce que el tiempo de recarga de combustible distribuye exponencial $\lambda$ = 30 minutos y se comienza justamente cuando el avión aterriza.
+\end{quote}
+
+Del texto anterior se asume que la probabilidad de que un avi\'on cargue(descargue) es de 1/2. Como solo importa el tiempo en que el avi\'on est\'a en la pista solo se tienen dos eventos: el arribo de un avi\'on a la pista(cuando el avi\'on comienza el aterrizaje en la pista) y el despegue del avi\'on(cuando el avi\'on termina el despegue). Cuando se da el evento de que un avi\'on comienza su aterrizaje en el tiempo $t$ se calcula un tiempo total en el cual el avi\'on estar\'a en la pista(se asume que ninguno de los eventos del p\'arrafo anterior transcurren en paralelo, por ejemplo, no se carga combustible al mismo tiempo en que se esta descargando mercanc\'ia) simulando cada una de las variables aleatorias y sum\'andolas. El c\'odigo siguiente muestra el procedimiento:
+\begin{lstlisting}[language=Python,caption= C\'alculo del tiempo total que toma un avi\'on en la pista]
+def calculate_time_in_airport(self):
+	total_time = 0
+	#Landing Time
+	total_time+= rand.normal(10,5)
+	#Fueling Time
+	total_time+= rand.exp(1/30)
+	if rand.uniform() > 1/2:
+		#Unloading Time
+		total_time += rand.exp(1/30)
+	if rand.uniform() > 1/2:
+		#Loading Time
+		total_time += rand.exp(1/30)
+	if rand.uniform() <= 0.1:
+		#Repair Time
+		total_time += rand.exp(1/15)
+	#Takeoff Time
+	total_time += rand.normal(10,5)
+	return total_time
+\end{lstlisting}
+
+\begin{quote}
+	Se asume además que los aviones pueden aterrizar en cada pista sin ninguna preferencia o requerimiento.
+\end{quote}
+	
+Por lo que cuando un avi\'on se dispone a aterrizar lo har\'a en alguna pista aleatoria de las disponibles. Para modelar esta parte se tiene una variable de estado del sistema $tracks$ que es una lista de tiempos en los cuales los aviones presentes en cada una de las pistas despegar\'an, o sea, $tracks[i] = t_i$ significa que en el tiempo $t_i$ se dar\'a el evento de que el avi\'on que est\'a en la pista $i$ finaliz\'o el despegue. $trakcs[i] = inf$ si no existe en la pista un avi\'on en el momento $t$, por lo que un avi\'on que va a aterrizar en una pista, selecciona una aleatoria de entre todas las pistas que contengan valor $inf$.  
+
+\subsection*{Modelo de Simulación de Eventos Discretos}
+\begin{enumerate}
+	\item Variable de tiempo: 
+		\begin{enumerate}
+			\item $t$: cantidad de tiempo transcurrido en la simulaci\'on.
+			\item $time\_limit$ : tiempo m\'aximo de simulaci\'on.
+			\item $t\_a$: Tiempo del pr\'oximo arribo de un avi\'on.
+		\end{enumerate}
+	 
+	\item Variables contadoras:
+		\begin{enumerate}
+			\item $cnt\_q$: Cantidad de aviones esperando en la cola para poder aterrizar. 
+		\end{enumerate}
+	\item Variables de estado:
+		\begin{enumerate}
+			\item $tracks$: Lista de tiempos en los cuales los aviones presentes en cada una de las pistas finalizar\'an el despegue.
+			\item $track\_tp$: $track\_tp[i]$ es una lista de intervalos de la forma $[t_a, t_d]$ los cuales significan que la pista $i$ estuvo ocupada desde el tiempo $t_a$ hasta el tiempo $t_d$, la parte $tp$ del nombre $track\_tp$ significa timestamp.
+		\end{enumerate}
+\end{enumerate}
+
+La variable de salida del sistema ser\'a  $track\_tp$. Solo existen dos eventos: arribo de un avi\'on, despegue de un avi\'on.
+\subsection*{Funcionamiento}
+
+Todo el c\'odigo de simulaci\'on est\'a en la clase Airport.
+
+Luego de la inicializaci\'on de las variables, a continuaci\'on se explica una iteraci\'on de la simulaci\'on. 
+
+Si el tiempo de arribo de un nuevo avi\'on $t\_a$ es menor que todos los dem\'as tiempos entonces se adelanta el tiempo de simulaci\'on $t$ hasta $t\_a$ y se trata de hacer aterrizar el avi\'on en alguna pista, de ninguna estar disponible se incrementa el contador $cnt\_q$ poniendo el avi\'on en cola. Si el avi\'on puede aterrizar en la pista $i$ lo que se hace es calcular el tiempo  total en que el avi\'on estar\'a en la pista mediante el c\'odigo en el listado 3 y se añade a la lista $track\_tp[i]$ el intervalo $[t, t + td]$ y se setea $tracks[i] = t + td$, donde $td$ es el tiempo total calculado. Note que $track\_tp$ es una lista de listas, una lista que posee 5 listas(las pistas).
+
+Si el tiempo en el cual el avi\'on en la pista $i$ termina de despegar es el menor de entre todos los tiempos de los eventos futuros se avanza el tiempo $t$ hasta el tiempo $trakcs[i]$, el cual dice el tiempo en que el avi\'on en la pista $i$ termin\'o de despegar. De haber alg\'un avi\'on en cola se selecciona la pista $i$ para que aterrice el pr\'oximo avi\'on y se sigue el mismo procedimiento que en el p\'arrafo anterior. De no haber ning\'un avi\'on en cola se setea $tracks[i] = inf$.
+
+\subsection*{Consideraciones}
+Debido a que los aviones pueden aterrizar en cada pista sin ninguna preferencia o requerimiento, los tiempos en que se encuentran vac\'ias cada pista son bastantes uniformes. Si se siguiera otra estrategia, por ejemplo seleccionar la pista con menor \'indice disponible para el aterrizaje, este patr\'on no se ver\'ia.
+
+El tiempo m\'aximo registrado entre todas las simulaciones por una pista fue de 2200 minutos aproximadamente, un d\'ia y medio. El m\'inimo fue de 1000 minutos aproximadamente, 16 horas. 
+
+Al parecer no hay diferencias significativas en los tiempos de aterrizar, rellenar combustible, cargar, descargar y despegar. Ning\'un tiempo influye mucho m\'as que los dem\'as en el tiempo total que se va a quedar el avi\'on en la pista.
+\end{document}
